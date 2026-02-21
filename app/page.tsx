@@ -99,12 +99,14 @@ export default function Home() {
 
         // Function to enforce positioning constraints on the widget
         const enforceConstraints = () => {
-          // Apply to the widget element itself
+          // Apply to the widget element itself - center it with margin auto
           (widget as HTMLElement).style.setProperty("position", "static", "important");
+          (widget as HTMLElement).style.setProperty("display", "block", "important");
           (widget as HTMLElement).style.setProperty("width", "100%", "important");
           (widget as HTMLElement).style.setProperty("max-width", "100%", "important");
           (widget as HTMLElement).style.setProperty("height", "auto", "important");
           (widget as HTMLElement).style.setProperty("max-height", "600px", "important");
+          (widget as HTMLElement).style.setProperty("margin", "0 auto", "important");
           (widget as HTMLElement).style.setProperty("top", "auto", "important");
           (widget as HTMLElement).style.setProperty("left", "auto", "important");
           (widget as HTMLElement).style.setProperty("right", "auto", "important");
@@ -122,10 +124,12 @@ export default function Home() {
               styleTag.textContent = `
                 :host {
                   position: static !important;
+                  display: block !important;
                   width: 100% !important;
                   max-width: 100% !important;
                   height: auto !important;
                   max-height: 600px !important;
+                  margin: 0 auto !important;
                   top: auto !important;
                   left: auto !important;
                   right: auto !important;
