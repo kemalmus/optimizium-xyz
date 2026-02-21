@@ -193,4 +193,28 @@
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
   }
+
+  /* ElevenLabs widget container */
+  .elevenlabs-widget-wrapper {
+    width: 100%;
+    min-height: 400px;
+    max-height: 600px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Constrain the web component */
+  .elevenlabs-widget-wrapper elevenlabs-convai {
+    width: 100% !important;
+    max-height: 600px !important;
+    overflow: hidden !important;
+  }
+
+  /* Constrain any iframes or shadow DOM elements */
+  .elevenlabs-widget-wrapper ::deep(elevenlabs-convai),
+  .elevenlabs-widget-wrapper ::deep(iframe),
+  .elevenlabs-widget-wrapper ::deep(div) {
+    max-height: 600px !important;
+    overflow: hidden !important;
+  }
 }

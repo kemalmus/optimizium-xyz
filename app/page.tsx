@@ -222,7 +222,7 @@ export default function Home() {
             <h2 className="text-lg font-semibold text-foreground mb-1">{t.widgetTitle}</h2>
             <p className="text-sm text-muted-foreground mb-6">{t.widgetSubtitle}</p>
 
-            <div id="elevenlabs-widget-container">
+            <div id="elevenlabs-widget-container" className="elevenlabs-widget-wrapper">
               {widgetStatus === "idle" || widgetStatus === "warning" ? (
                 <div className="rounded-xl border-2 border-dashed border-border bg-muted/30 px-6 py-10 text-center">
                   <div className="text-4xl mb-3">🎙️</div>
