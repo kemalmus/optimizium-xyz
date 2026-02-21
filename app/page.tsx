@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 
 export default function Home() {
+  const [introDone, setIntroDone] = useState(false);
+  const [introStarted, setIntroStarted] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [widgetStatus, setWidgetStatus] = useState<"idle" | "loading" | "ready" | "warning">("idle");
   const [warningText, setWarningText] = useState("");
@@ -29,7 +32,7 @@ export default function Home() {
       lang: "lang",
       offer_version: "offer_version",
       campaign: "campaign",
-      sender_name: "sender_name",
+      sender_name: "sender_name"
     };
     const vars: Record<string, string> = {};
     for (const [urlKey, widgetKey] of Object.entries(mapping)) {
@@ -99,7 +102,7 @@ export default function Home() {
   }, [agentId, dynamicVars, lang]);
 
   const t = {
-    title: lang === "en" ? "Talk to our AI Assistant" : "Porozmawiaj z naszym asystentem AI",
+    title: lang === "en" ? "Talk to our AI Assistant" : "Porozmawiaj z asystentem AI ds. Oferty",
     subtitle:
       lang === "en"
         ? "Learn how AI can streamline your recruitment agency"
@@ -116,8 +119,43 @@ export default function Home() {
     footer: lang === "en" ? "This conversation is powered by AI." : "Ta rozmowa jest obsługiwana przez AI.",
   };
 
+  // Intro video functionality
+  const handleIntroStart = () => {
+    if (!introStarted && videoRef.current) {
+      videoRef.current.muted = false;
+      videoRef.current.play();
+      setIntroStarted(true);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen flex-col relative overflow-hidden">
+    <>
+      {/* Intro Video */}
+      {!introDone && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background cursor-pointer"
+          onClick={handleIntroStart}
+        >
+          <video
+            ref={videoRef}
+            src="/logo-text-final.mp4"
+            playsInline
+            onEnded={() => setIntroDone(true)}
+            className="max-w-[80%] max-h-[80%] object-contain"
+          />
+          {!introStarted && (
+            <button className="mt-10 group relative flex items-center gap-3 rounded-full border border-brand-teal/40 bg-brand-teal/10 px-8 py-4 text-brand-teal font-semibold tracking-wider uppercase text-sm backdrop-blur-md transition-all duration-300 hover:bg-brand-teal/20 hover:border-brand-teal/70 hover:shadow-[0_0_30px_rgba(0,206,209,0.3)]">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-teal text-background text-lg">
+                ▶
+              </span>
+              <span>Start Experience</span>
+              <span className="absolute inset-0 rounded-full animate-ping border border-brand-teal/20 pointer-events-none" style={{ animationDuration: '2s' }} />
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className={`flex min-h-screen flex-col relative overflow-hidden transition-opacity duration-700 ${introDone ? 'opacity-100' : 'opacity-0'}`}>
       {/* Background glow effects */}
       <div className="pointer-events-none fixed inset-0">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-brand-purple/10 blur-[120px]" />
@@ -167,14 +205,14 @@ export default function Home() {
               )}
 
               <div className="space-y-3">
-                {t.features.map((feature, i) => (
+                {t.features.map((feature, i) =>
                   <div key={i} className="flex items-start gap-3 text-[15px] text-muted-foreground">
                     <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-brand-success text-[11px] text-primary-foreground font-bold">
                       ✓
                     </div>
                     <span>{feature}</span>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -254,5 +292,5 @@ export default function Home() {
         <p className="mt-1 opacity-70">{t.footer}</p>
       </footer>
     </div>
-  );
+    </>);
 }
