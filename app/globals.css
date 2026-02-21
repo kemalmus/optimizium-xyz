@@ -130,4 +130,67 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
     pointer-events: none;
   }
+
+  /* Start button - Safari compatible */
+  .start-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid hsl(172 66% 50% / 0.4);
+    background: hsl(172 66% 50% / 0.1);
+    padding: 1rem 2rem;
+    color: hsl(172 66% 50%);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+  }
+
+  .start-button:hover {
+    background: hsl(172 66% 50% / 0.2);
+    border-color: hsl(172 66% 50% / 0.7);
+    box-shadow: 0 0 30px hsl(172 66% 50% / 0.3), 0 0 60px hsl(172 66% 50% / 0.1);
+  }
+
+  .start-button-icon {
+    display: flex;
+    height: 2.5rem;
+    width: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: hsl(172 66% 50%);
+    color: hsl(220 14% 4%);
+    font-size: 1.125rem;
+  }
+
+  /* Ping animation - Safari optimized */
+  @keyframes ping-slow {
+    75%, 100% {
+      transform: scale(2);
+      opacity: 0;
+    }
+  }
+
+  .start-button-ping {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 1px solid hsl(172 66% 50% / 0.2);
+    pointer-events: none;
+    animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  /* Force hardware acceleration for smoother animations */
+  .start-button,
+  .start-button-ping {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
 }

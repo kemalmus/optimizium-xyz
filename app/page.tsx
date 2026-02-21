@@ -144,12 +144,12 @@ export default function Home() {
             className="max-w-[80%] max-h-[80%] object-contain"
           />
           {!introStarted && (
-            <button className="mt-10 group relative flex items-center gap-3 rounded-full border border-brand-teal/40 bg-brand-teal/10 px-8 py-4 text-brand-teal font-semibold tracking-wider uppercase text-sm backdrop-blur-md transition-all duration-300 hover:bg-brand-teal/20 hover:border-brand-teal/70 hover:shadow-[0_0_30px_rgba(0,206,209,0.3)]">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-teal text-background text-lg">
+            <button className="mt-10 start-button">
+              <span className="start-button-icon">
                 ▶
               </span>
               <span>Start Experience</span>
-              <span className="absolute inset-0 rounded-full animate-ping border border-brand-teal/20 pointer-events-none" style={{ animationDuration: '2s' }} />
+              <span className="start-button-ping" />
             </button>
           )}
         </div>
