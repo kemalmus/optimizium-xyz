@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 14% 4%;
+    --foreground: 210 20% 98%;
+
+    --card: 220 10% 10%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 220 10% 10%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 258 90% 66%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217 70% 55%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 10% 15%;
+    --muted-foreground: 218 11% 65%;
+
+    --accent: 172 66% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 10% 18%;
+    --input: 220 10% 18%;
+    --ring: 258 90% 66%;
+
+    --radius: 0.75rem;
+
+    /* Brand-specific tokens */
+    --brand-purple: 258 90% 66%;
+    --brand-blue: 217 91% 60%;
+    --brand-teal: 172 66% 50%;
+    --brand-orange: 25 95% 53%;
+    --brand-success: 160 84% 39%;
+    --brand-warning: 38 92% 50%;
+
+    --gradient-brand: linear-gradient(135deg, hsl(258 90% 66%), hsl(217 91% 60%), hsl(172 66% 50%), hsl(25 95% 53%));
+    --gradient-hero: linear-gradient(135deg, hsl(258 90% 66%), hsl(217 91% 60%));
+    --gradient-glow: radial-gradient(ellipse at center, hsl(258 90% 66% / 0.15), transparent 70%);
+
+    --shadow-glow: 0 0 40px hsl(258 90% 66% / 0.2), 0 0 80px hsl(217 91% 60% / 0.1);
+    --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.4), 0 0 1px hsl(0 0% 100% / 0.05);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+@layer utilities {
+  .gradient-brand {
+    background: linear-gradient(135deg, hsl(258 90% 66%), hsl(217 91% 60%), hsl(172 66% 50%), hsl(25 95% 53%));
+  }
+
+  .gradient-brand-text {
+    background: linear-gradient(135deg, hsl(258 90% 66%), hsl(217 91% 60%), hsl(172 66% 50%), hsl(25 95% 53%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-hero {
+    background: linear-gradient(135deg, hsl(258 90% 66%), hsl(217 91% 60%));
+  }
+
+  .glass-card {
+    background: hsl(220 10% 10% / 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+  }
+
+  .holographic-border {
+    position: relative;
+  }
+
+  .holographic-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(258 90% 66%), hsl(217 91% 60%), hsl(172 66% 50%), hsl(25 95% 53%));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 40px hsl(258 90% 66% / 0.2), 0 0 80px hsl(217 91% 60% / 0.1);
+  }
+
+  .text-grain {
+    position: relative;
+  }
+
+  .text-grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+}

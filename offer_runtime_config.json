@@ -1,0 +1,25 @@
+{
+  "brand_name": "Optimizium",
+  "human_contact_name": "Paweł",
+  "default_lang": "pl",
+  "secondary_lang": "en",
+  "offer_version": "recruitment-v1",
+  "pricing": {
+    "workshop_pln_net": 4000,
+    "retainer_hourly_pln_net": [
+      { "max_hours": 10, "rate": 600 },
+      { "max_hours": 20, "rate": 550 },
+      { "max_hours": 9999, "rate": 500 }
+    ],
+    "go_live_fee_pln_net": {
+      "small": 5000,
+      "medium": 12000,
+      "large": 20000
+    }
+  },
+  "guardrails": {
+    "no_discounts_without_human": true,
+    "no_legal_commitments": true,
+    "no_candidate_pii": true
+  }
+}
