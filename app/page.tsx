@@ -95,30 +95,105 @@ export default function Home() {
           widget.setAttribute("override-language", dynamicVars.lang);
         }
 
-        // Force inline styles to override widget's default positioning
-        widget.style.position = "static";
-        widget.style.width = "100%";
-        widget.style.maxWidth = "100%";
-        widget.style.height = "auto";
-        widget.style.maxHeight = "600px";
-        widget.style.overflow = "hidden";
-
         container.appendChild(widget);
 
-        // Try to override Shadow DOM styles after widget mounts
+        // Function to enforce positioning constraints on the widget
+        const enforceConstraints = () => {
+          // Apply to the widget element itself
+          (widget as HTMLElement).style.setProperty("position", "static", "important");
+          (widget as HTMLElement).style.setProperty("width", "100%", "important");
+          (widget as HTMLElement).style.setProperty("max-width", "100%", "important");
+          (widget as HTMLElement).style.setProperty("height", "auto", "important");
+          (widget as HTMLElement).style.setProperty("max-height", "600px", "important");
+          (widget as HTMLElement).style.setProperty("top", "auto", "important");
+          (widget as HTMLElement).style.setProperty("left", "auto", "important");
+          (widget as HTMLElement).style.setProperty("right", "auto", "important");
+          (widget as HTMLElement).style.setProperty("bottom", "auto", "important");
+          (widget as HTMLElement).style.setProperty("transform", "none", "important");
+
+          // Apply to Shadow DOM
+          const shadowRoot = (widget as any).shadowRoot;
+          if (shadowRoot) {
+            // Ensure our style tag exists
+            let styleTag = shadowRoot.querySelector("#constrain-styles") as HTMLStyleElement;
+            if (!styleTag) {
+              styleTag = document.createElement("style");
+              styleTag.id = "constrain-styles";
+              styleTag.textContent = `
+                :host {
+                  position: static !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  height: auto !important;
+                  max-height: 600px !important;
+                  top: auto !important;
+                  left: auto !important;
+                  right: auto !important;
+                  bottom: auto !important;
+                  transform: none !important;
+                }
+                *, *::before, *::after {
+                  position: relative !important;
+                  top: auto !important;
+                  left: auto !important;
+                  right: auto !important;
+                  bottom: auto !important;
+                  transform: none !important;
+                }
+              `;
+              shadowRoot.appendChild(styleTag);
+            }
+
+            // Also enforce on all shadow DOM elements
+            const allElements = shadowRoot.querySelectorAll("*");
+            allElements.forEach((el: any) => {
+              if (el.style) {
+                const computed = window.getComputedStyle(el);
+                if (computed.position === "fixed" || computed.position === "absolute") {
+                  el.style.setProperty("position", "relative", "important");
+                }
+                el.style.setProperty("top", "auto", "important");
+                el.style.setProperty("left", "auto", "important");
+                el.style.setProperty("right", "auto", "important");
+                el.style.setProperty("bottom", "auto", "important");
+              }
+            });
+          }
+        };
+
+        // Initial enforcement after widget mounts
+        setTimeout(() => {
+          enforceConstraints();
+          setWidgetStatus("ready");
+        }, 100);
+
+        // Set up MutationObserver to continuously enforce constraints
+        // This handles the widget re-rendering itself during voice mode
+        const observer = new MutationObserver(() => {
+          enforceConstraints();
+        });
+
+        // Start observing after a short delay
         setTimeout(() => {
           const shadowRoot = (widget as any).shadowRoot;
           if (shadowRoot) {
-            const style = document.createElement("style");
-            style.textContent = `
-              * { position: static !important; top: auto !important; left: auto !important; right: auto !important; bottom: auto !important; transform: none !important; }
-              :host { position: static !important; width: 100% !important; max-width: 100% !important; height: auto !important; max-height: 600px !important; }
-            `;
-            shadowRoot.appendChild(style);
-          }
-        }, 100);
+            observer.observe(shadowRoot, {
+              attributes: true,
+              childList: true,
+              subtree: true,
+              attributeFilter: ["style", "class"]
+            });
 
-        setWidgetStatus("ready");
+            // Run enforcement periodically as backup
+            const intervalId = setInterval(enforceConstraints, 500);
+
+            // Clean up on unmount
+            return () => {
+              observer.disconnect();
+              clearInterval(intervalId);
+            };
+          }
+        }, 200);
       }
     }
   }, [agentId, dynamicVars, lang]);

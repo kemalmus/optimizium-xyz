@@ -233,4 +233,37 @@
     max-width: 100% !important;
     max-height: 600px !important;
   }
+
+  /* Global override for ElevenLabs widget - highest specificity */
+  elevenlabs-convai,
+  elevenlabs-convai *,
+  elevenlabs-convai::before,
+  elevenlabs-convai::after {
+    box-sizing: border-box !important;
+  }
+
+  elevenlabs-convai {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 600px !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    overflow: hidden !important;
+  }
+
+  /* Contain any fixed/absolute positioned children */
+  elevenlabs-convai > *,
+  elevenlabs-convai shadow-root,
+  elevenlabs-convai::part(*) {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
 }
