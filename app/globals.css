@@ -197,13 +197,14 @@
   /* ElevenLabs widget container */
   .elevenlabs-widget-wrapper {
     width: 100%;
-    min-height: 400px;
+    min-height: 450px;
     max-height: 600px;
     overflow: hidden;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: hsl(220 10% 10% / 0.3);
   }
 
   /* Constrain the web component - override fixed positioning */
@@ -221,6 +222,9 @@
     bottom: auto !important;
     transform: none !important;
     overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   /* Override any Shadow DOM elements */

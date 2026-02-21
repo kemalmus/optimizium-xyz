@@ -7,7 +7,6 @@ export default function Home() {
   const [introDone, setIntroDone] = useState(false);
   const [introStarted, setIntroStarted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [debugOpen, setDebugOpen] = useState(false);
   const [widgetStatus, setWidgetStatus] = useState<"idle" | "loading" | "ready" | "warning">("idle");
   const [warningText, setWarningText] = useState("");
 
@@ -241,66 +240,27 @@ export default function Home() {
           </div>
 
           {/* Widget Card */}
-          <div className="glass-card rounded-2xl p-6 text-center">
-            <h2 className="text-lg font-semibold text-foreground mb-1">{t.widgetTitle}</h2>
-            <p className="text-sm text-muted-foreground mb-6">{t.widgetSubtitle}</p>
+          <div className="glass-card rounded-2xl overflow-hidden">
+            {/* Card Header */}
+            <div className="px-6 py-4 border-b border-border/50 text-center">
+              <h2 className="text-lg font-semibold text-foreground">{t.widgetTitle}</h2>
+            </div>
 
+            {/* Widget Container */}
             <div id="elevenlabs-widget-container" className="elevenlabs-widget-wrapper">
               {widgetStatus === "idle" || widgetStatus === "warning" ? (
-                <div className="rounded-xl border-2 border-dashed border-border bg-muted/30 px-6 py-10 text-center">
-                  <div className="text-4xl mb-3">🎙️</div>
-                  <div className="font-semibold text-foreground mb-1">Widget konfiguracja</div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Aby uruchomić widget, ustaw <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">NEXT_PUBLIC_AGENT_ID</code> lub dodaj parametr w URL:
+                <div className="flex flex-col items-center justify-center p-10 text-center">
+                  <div className="text-5xl mb-4">🎙️</div>
+                  <div className="font-semibold text-foreground mb-2">Widget konfiguracja</div>
+                  <p className="text-sm text-muted-foreground mb-4 max-w-xs">
+                    Aby uruchomić widget, ustaw <code className="rounded bg-muted/50 px-1.5 py-0.5 text-xs font-mono text-foreground">NEXT_PUBLIC_AGENT_ID</code>
                   </p>
-                  <div className="rounded-md bg-muted border border-border px-3 py-2 font-mono text-xs text-foreground overflow-x-auto">
-                    ?agent_id=YOUR_AGENT_ID
-                  </div>
+                  {widgetStatus === "warning" && (
+                    <div className="mt-2 text-xs text-brand-warning">{warningText}</div>
+                  )}
                 </div>
               ) : null}
             </div>
-
-            {/* Status Messages */}
-            {widgetStatus === "loading" && (
-              <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-secondary/20 border border-secondary/30 px-4 py-3 text-sm text-secondary">
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-border border-t-secondary" />
-                <span>{t.loading}</span>
-              </div>
-            )}
-            {widgetStatus === "ready" && (
-              <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-brand-success/10 border border-brand-success/30 px-4 py-3 text-sm text-brand-success">
-                <span>✓</span>
-                <span>{t.ready}</span>
-              </div>
-            )}
-            {widgetStatus === "warning" && (
-              <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-brand-warning/10 border border-brand-warning/30 px-4 py-3 text-sm text-brand-warning">
-                <span>⚠</span>
-                <span>{warningText}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Debug Panel */}
-          <div className="glass-card rounded-xl overflow-hidden">
-            <button
-              onClick={() => setDebugOpen(!debugOpen)}
-              className="w-full flex items-center justify-between bg-muted/30 px-4 py-3 text-xs uppercase tracking-widest text-muted-foreground hover:bg-muted/50 transition-colors"
-            >
-              <span>🔧 Debug: Dynamic Variables</span>
-              <span className="text-sm">{debugOpen ? "▼" : "▶"}</span>
-            </button>
-            {debugOpen && (
-              <div className="p-4">
-                <pre className="rounded-lg bg-muted/50 p-3 font-mono text-xs text-foreground overflow-x-auto whitespace-pre-wrap break-all">
-                  {JSON.stringify(
-                    { urlParams, dynamicVariables: dynamicVars, agentId: agentId || "NOT CONFIGURED" },
-                    null,
-                    2
-                  )}
-                </pre>
-              </div>
-            )}
           </div>
         </div>
       </main>
