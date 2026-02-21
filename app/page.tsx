@@ -22,7 +22,7 @@ export default function Home() {
   }, []);
 
   const lang = urlParams.lang || "pl";
-  const agentId = urlParams.agent_id || null;
+  const agentId = urlParams.agent_id || process.env.NEXT_PUBLIC_AGENT_ID || null;
 
   const dynamicVars = useMemo(() => {
     const mapping: Record<string, string> = {
@@ -54,8 +54,8 @@ export default function Home() {
       setWidgetStatus("warning");
       setWarningText(
         lang === "en"
-          ? "Agent ID not configured. Add ?agent_id=YOUR_ID to URL."
-          : "Brak Agent ID. Dodaj ?agent_id=YOUR_ID do URL."
+          ? "Agent ID not configured. Set NEXT_PUBLIC_AGENT_ID or add ?agent_id=YOUR_ID to URL."
+          : "Brak Agent ID. Ustaw NEXT_PUBLIC_AGENT_ID lub dodaj ?agent_id=YOUR_ID do URL."
       );
       return;
     }
@@ -228,7 +228,7 @@ export default function Home() {
                   <div className="text-4xl mb-3">🎙️</div>
                   <div className="font-semibold text-foreground mb-1">Widget konfiguracja</div>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Aby uruchomić widget, ustaw <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">AGENT_ID</code> w URL.
+                    Aby uruchomić widget, ustaw <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-foreground">NEXT_PUBLIC_AGENT_ID</code> lub dodaj parametr w URL:
                   </p>
                   <div className="rounded-md bg-muted border border-border px-3 py-2 font-mono text-xs text-foreground overflow-x-auto">
                     ?agent_id=YOUR_AGENT_ID
