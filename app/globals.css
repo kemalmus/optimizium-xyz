@@ -201,20 +201,32 @@
     max-height: 600px;
     overflow: hidden;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  /* Constrain the web component */
-  .elevenlabs-widget-wrapper elevenlabs-convai {
+  /* Constrain the web component - override fixed positioning */
+  .elevenlabs-widget-wrapper elevenlabs-convai,
+  .elevenlabs-widget-wrapper > elevenlabs-convai {
+    position: static !important;
+    position: relative !important;
     width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
     max-height: 600px !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: none !important;
     overflow: hidden !important;
   }
 
-  /* Constrain any iframes or shadow DOM elements */
-  .elevenlabs-widget-wrapper ::deep(elevenlabs-convai),
-  .elevenlabs-widget-wrapper ::deep(iframe),
-  .elevenlabs-widget-wrapper ::deep(div) {
+  /* Override any Shadow DOM elements */
+  .elevenlabs-widget-wrapper > * {
+    position: static !important;
+    max-width: 100% !important;
     max-height: 600px !important;
-    overflow: hidden !important;
   }
 }

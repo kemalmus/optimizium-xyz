@@ -95,7 +95,30 @@ export default function Home() {
         if (dynamicVars.lang) {
           widget.setAttribute("override-language", dynamicVars.lang);
         }
+
+        // Force inline styles to override widget's default positioning
+        widget.style.position = "static";
+        widget.style.width = "100%";
+        widget.style.maxWidth = "100%";
+        widget.style.height = "auto";
+        widget.style.maxHeight = "600px";
+        widget.style.overflow = "hidden";
+
         container.appendChild(widget);
+
+        // Try to override Shadow DOM styles after widget mounts
+        setTimeout(() => {
+          const shadowRoot = (widget as any).shadowRoot;
+          if (shadowRoot) {
+            const style = document.createElement("style");
+            style.textContent = `
+              * { position: static !important; top: auto !important; left: auto !important; right: auto !important; bottom: auto !important; transform: none !important; }
+              :host { position: static !important; width: 100% !important; max-width: 100% !important; height: auto !important; max-height: 600px !important; }
+            `;
+            shadowRoot.appendChild(style);
+          }
+        }, 100);
+
         setWidgetStatus("ready");
       }
     }
