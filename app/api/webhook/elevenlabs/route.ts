@@ -1,104 +1,131 @@
-import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
+import { NextRequest } from 'next/server';
+import {
+  createSuccessResponse,
+  createErrorResponse,
+  createValidationErrorResponse,
+  verifyWebhookSignature,
+} from '@/lib/auth';
+import { ElevenLabsWebhookSchema } from '@/lib/schemas';
+import { storage, type StorageRecord } from '@/lib/storage';
 
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
-
-function verifyWebhookSignature(payload: string, signature: string): boolean {
-  if (!WEBHOOK_SECRET) {
-    console.warn('[WEBHOOK] No WEBHOOK_SECRET configured, skipping signature verification');
-    return true;
-  }
-
-  const hmac = crypto.createHmac('sha256', WEBHOOK_SECRET);
-  const digest = hmac.update(payload).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest));
-}
-
-export interface ElevenLabsWebhookPayload {
-  event_id?: string;
-  event_type: string;
-  timestamp?: string;
-  data?: {
-    conversation_id?: string;
-    call_id?: string;
-    agent_id?: string;
-    duration_seconds?: number;
-    transcript?: string;
-    summary?: string;
-    outcome?: string;
-    metadata?: Record<string, any>;
-  };
-}
+// ============================================================================
+// POST /api/webhook/elevenlabs
+// ElevenLabs Conversation Webhook
+//
+// Receives webhook events from ElevenLabs after conversations end.
+// Verifies signature using WEBHOOK_SECRET for security.
+// ============================================================================
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. Get raw body for signature verification
     const rawBody = await request.text();
-    const payload: ElevenLabsWebhookPayload = JSON.parse(rawBody);
 
-    // Verify webhook signature if secret is configured
-    const signature = request.headers.get('x-webhook-signature') || request.headers.get('x-elevenlabs-signature') || '';
-    if (signature && WEBHOOK_SECRET && !verifyWebhookSignature(rawBody, signature)) {
-      console.warn('[WEBHOOK] Invalid signature received');
-      return NextResponse.json(
-        { error: 'Invalid signature', success: false },
-        { status: 401 }
-      );
+    // 2. Verify signature if WEBHOOK_SECRET is set
+    const signature = request.headers.get('x-webhook-signature') ||
+                     request.headers.get('x-elevenlabs-signature') ||
+                     '';
+
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      return createErrorResponse('Invalid webhook signature', 401, 'UNAUTHORIZED');
     }
 
-    // Log webhook event
-    console.log('[ELEVENLABS WEBHOOK]', {
-      event_type: payload.event_type,
-      event_id: payload.event_id,
-      conversation_id: payload.data?.conversation_id,
-      call_id: payload.data?.call_id,
-      timestamp: payload.timestamp || new Date().toISOString()
-    });
+    // 3. Parse and validate payload
+    let payload;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return createErrorResponse('Invalid JSON payload', 400, 'INVALID_JSON');
+    }
 
-    // TODO: Implement event-specific logic
-    switch (payload.event_type) {
+    const validationResult = ElevenLabsWebhookSchema.safeParse(payload);
+
+    if (!validationResult.success) {
+      return createValidationErrorResponse(validationResult.error);
+    }
+
+    const data = validationResult.data;
+
+    // 4. Store webhook event
+    const webhookId = `webhook_${data.event_type || 'unknown'}_${Date.now()}`;
+
+    const record: StorageRecord = {
+      id: webhookId,
+      timestamp: data.timestamp || new Date().toISOString(),
+      type: 'webhook',
+      data: {
+        event_id: data.event_id,
+        event_type: data.event_type,
+        conversation_id: data.data?.conversation_id,
+        call_id: data.data?.call_id,
+        agent_id: data.data?.agent_id,
+        duration_seconds: data.data?.duration_seconds,
+        transcript: data.data?.transcript,
+        summary: data.data?.summary,
+        outcome: data.data?.outcome,
+        metadata: data.data?.metadata,
+      },
+    };
+
+    await storage.save(record);
+
+    // 5. Log event type for monitoring
+    console.log(`[WEBHOOK] ${data.event_type} - ${data.data?.conversation_id || 'no-id'}`);
+
+    // 6. Handle specific event types
+    switch (data.event_type) {
       case 'call.completed':
       case 'conversation.ended':
       case 'call_ended':
-        // Process completed call
-        console.log('[WEBHOOK] Call completed', {
-          conversation_id: payload.data?.conversation_id,
-          duration: payload.data?.duration_seconds,
-          outcome: payload.data?.outcome
-        });
+        console.log(`[WEBHOOK] Call completed - Duration: ${data.data?.duration_seconds}s, Outcome: ${data.data?.outcome || 'N/A'}`);
         break;
 
       case 'call.started':
       case 'conversation.started':
-        // Track new call
-        console.log('[WEBHOOK] Call started', {
-          conversation_id: payload.data?.conversation_id
-        });
+        console.log(`[WEBHOOK] Call started - ${data.data?.conversation_id}`);
         break;
 
       default:
-        console.log('[WEBHOOK] Unknown event type:', payload.event_type);
+        console.log(`[WEBHOOK] Unknown event type: ${data.event_type}`);
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Webhook received',
-      event_type: payload.event_type
-    });
+    // 7. Return success response
+    return createSuccessResponse(
+      {
+        webhook_id: webhookId,
+        event_type: data.event_type,
+        processed_at: new Date().toISOString(),
+      },
+      'Webhook received and processed',
+      200
+    );
 
   } catch (error) {
-    console.error('[WEBHOOK ERROR]', error);
-    return NextResponse.json(
-      { error: 'Invalid request body', success: false },
-      { status: 400 }
-    );
+    console.error('[WEBHOOK] Unexpected error:', error);
+    return createErrorResponse('Internal server error', 500, 'INTERNAL_ERROR');
   }
 }
 
+// ============================================================================
+// GET /api/webhook/elevenlabs (Health check - no auth required for webhook endpoint)
+// ============================================================================
 export async function GET(request: NextRequest) {
-  return NextResponse.json({
-    success: true,
-    message: 'ElevenLabs webhook endpoint is operational',
-    endpoint: '/api/webhook/elevenlabs',
-    configured: !!WEBHOOK_SECRET
-  });
+  const webhookSecretSet = !!process.env.WEBHOOK_SECRET;
+
+  return createSuccessResponse(
+    {
+      endpoint: '/api/webhook/elevenlabs',
+      method: 'POST',
+      description: 'ElevenLabs conversation webhook endpoint',
+      signature_verification: webhookSecretSet ? 'enabled (WEBHOOK_SECRET set)' : 'disabled (WEBHOOK_SECRET not set)',
+      supported_events: [
+        'call.completed',
+        'conversation.ended',
+        'call_ended',
+        'call.started',
+        'conversation.started',
+      ],
+    },
+    'Webhook endpoint is operational'
+  );
 }

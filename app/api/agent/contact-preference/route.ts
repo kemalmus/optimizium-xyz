@@ -1,81 +1,107 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyApiToken, createUnauthorizedResponse } from '@/lib/auth';
+import { NextRequest } from 'next/server';
+import {
+  verifyApiToken,
+  createSuccessResponse,
+  createUnauthorizedResponse,
+  createValidationErrorResponse,
+} from '@/lib/auth';
+import { CaptureContactPreferenceSchema } from '@/lib/schemas';
+import { storage, type StorageRecord } from '@/lib/storage';
 
-export interface ContactPreferenceSubmission {
-  agent_id: string;
-  conversation_id: string;
-  preferred_method?: 'email' | 'phone' | 'video_call' | 'in_person';
-  preferred_time?: string;
-  timezone?: string;
-  email?: string;
-  phone?: string;
-  notes?: string;
-  metadata?: Record<string, any>;
-}
+// ============================================================================
+// POST /api/agent/contact-preference
+// ElevenLabs Tool: capture_contact_preference
+//
+// Stores how/when the prospect prefers to be contacted.
+// Optional but recommended for better follow-up experience.
+// ============================================================================
 
 export async function POST(request: NextRequest) {
-  // Verify API token
+  // 1. Verify authentication
   const authResult = verifyApiToken(request);
   if (!authResult.success) {
     return createUnauthorizedResponse(authResult.error!);
   }
 
   try {
-    const body: ContactPreferenceSubmission = await request.json();
+    // 2. Parse and validate request body
+    const rawBody = await request.json();
 
-    // Validate required fields
-    if (!body.agent_id || !body.conversation_id) {
-      return NextResponse.json(
-        { error: 'Missing required fields: agent_id, conversation_id', success: false },
-        { status: 400 }
-      );
+    const validationResult = CaptureContactPreferenceSchema.safeParse(rawBody);
+
+    if (!validationResult.success) {
+      return createValidationErrorResponse(validationResult.error);
     }
 
-    // TODO: Implement actual storage logic
-    // Options: Database (Vercel Postgres, Supabase, etc.)
-    console.log('[CONTACT PREFERENCE]', {
-      agent_id: body.agent_id,
-      conversation_id: body.conversation_id,
-      preferred_method: body.preferred_method,
-      preferred_time: body.preferred_time,
-      timezone: body.timezone,
-      email: body.email,
-      phone: body.phone,
-      notes: body.notes,
-      metadata: body.metadata,
-      timestamp: new Date().toISOString()
-    });
+    const data = validationResult.data;
 
-    return NextResponse.json({
-      success: true,
-      message: 'Contact preference saved',
-      conversation_id: body.conversation_id,
-      preference: {
-        method: body.preferred_method || 'not_specified',
-        time: body.preferred_time || 'not_specified'
-      }
-    });
+    // 3. Generate unique ID for this preference
+    const preferenceId = `contact_pref_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    // 4. Store the contact preference
+    const record: StorageRecord = {
+      id: preferenceId,
+      timestamp: data.timestamp,
+      type: 'contact_preference',
+      data: {
+        lead_id: data.lead_id,
+        contact_method: data.contact_method,
+        time_window: data.time_window,
+        email: data.email,
+      },
+    };
+
+    await storage.save(record);
+
+    // 5. Return success response
+    return createSuccessResponse(
+      {
+        preference_id: preferenceId,
+        contact_method: data.contact_method,
+        time_window: data.time_window || 'any time',
+        email_provided: !!data.email,
+      },
+      'Contact preference saved successfully',
+      201
+    );
 
   } catch (error) {
-    console.error('[CONTACT PREFERENCE ERROR]', error);
-    return NextResponse.json(
-      { error: 'Invalid request body', success: false },
-      { status: 400 }
+    // Handle JSON parse errors
+    if (error instanceof SyntaxError) {
+      return createValidationErrorResponse({
+        name: 'ZodError',
+        issues: [{ message: 'Invalid JSON in request body', path: [], code: 'invalid_json' }],
+      } as any);
+    }
+
+    // Log unexpected errors
+    console.error('[CONTACT-PREFERENCE] Unexpected error:', error);
+    return createSuccessResponse(
+      { error: 'Internal server error' },
+      'An unexpected error occurred',
+      500
     );
   }
 }
 
+// ============================================================================
+// GET /api/agent/contact-preference (Health check)
+// ============================================================================
 export async function GET(request: NextRequest) {
-  // Verify API token
   const authResult = verifyApiToken(request);
   if (!authResult.success) {
     return createUnauthorizedResponse(authResult.error!);
   }
 
-  return NextResponse.json({
-    success: true,
-    message: 'Contact preference API is operational',
-    endpoint: '/api/agent/contact-preference',
-    supported_methods: ['email', 'phone', 'video_call', 'in_person']
-  });
+  return createSuccessResponse(
+    {
+      endpoint: '/api/agent/contact-preference',
+      method: 'POST',
+      description: 'Stores how/when the prospect prefers to be contacted',
+      required_fields: ['timestamp', 'contact_method'],
+      optional_fields: ['lead_id', 'time_window', 'email'],
+      supported_methods: ['email', 'call', 'no_preference'],
+    },
+    'Contact preference API is operational'
+  );
 }

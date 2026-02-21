@@ -1,91 +1,117 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyApiToken, createUnauthorizedResponse } from '@/lib/auth';
+import { NextRequest } from 'next/server';
+import {
+  verifyApiToken,
+  createSuccessResponse,
+  createUnauthorizedResponse,
+  createValidationErrorResponse,
+} from '@/lib/auth';
+import { RequestHandoffSchema } from '@/lib/schemas';
+import { storage, type StorageRecord } from '@/lib/storage';
 
-export interface HandoffRequest {
-  agent_id: string;
-  conversation_id: string;
-  reason: string;
-  urgency?: 'low' | 'medium' | 'high';
-  context?: {
-    user_name?: string;
-    topic?: string;
-    summary?: string;
-    messages_count?: number;
-  };
-  contact_info?: {
-    email?: string;
-    phone?: string;
-    preferred_method?: 'email' | 'phone';
-  };
-}
+// ============================================================================
+// POST /api/agent/request-handoff
+// ElevenLabs Tool: request_handoff
+//
+// Requests human follow-up and records urgency + reason.
+// Use when topic is outside agent's authority or requires human decision.
+// ============================================================================
 
 export async function POST(request: NextRequest) {
-  // Verify API token
+  // 1. Verify authentication
   const authResult = verifyApiToken(request);
   if (!authResult.success) {
     return createUnauthorizedResponse(authResult.error!);
   }
 
   try {
-    const body: HandoffRequest = await request.json();
+    // 2. Parse and validate request body
+    const rawBody = await request.json();
 
-    // Validate required fields
-    if (!body.agent_id || !body.conversation_id || !body.reason) {
-      return NextResponse.json(
-        { error: 'Missing required fields: agent_id, conversation_id, reason', success: false },
-        { status: 400 }
-      );
+    const validationResult = RequestHandoffSchema.safeParse(rawBody);
+
+    if (!validationResult.success) {
+      return createValidationErrorResponse(validationResult.error);
     }
 
+    const data = validationResult.data;
+
+    // 3. Generate unique ID for this handoff
+    const handoffId = `handoff_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    // 4. Store the handoff request
+    const record: StorageRecord = {
+      id: handoffId,
+      timestamp: data.timestamp,
+      type: 'handoff',
+      data: {
+        lead_id: data.lead_id,
+        urgency: data.urgency,
+        reason: data.reason,
+        relevant_context: data.relevant_context,
+      },
+    };
+
+    await storage.save(record);
+
+    // 5. Get human contact info from env
     const humanContactName = process.env.HUMAN_CONTACT_NAME || 'Paweł';
     const brandName = process.env.BRAND_NAME || 'Optimizium';
 
-    // TODO: Implement actual notification logic
-    // Options:
-    // - Send email via Resend/SendGrid
-    // - Send Slack webhook
-    // - Store in database for dashboard
-    console.log('[HANDOFF REQUEST]', {
-      agent_id: body.agent_id,
-      conversation_id: body.conversation_id,
-      reason: body.reason,
-      urgency: body.urgency || 'medium',
-      context: body.context,
-      contact_info: body.contact_info,
-      timestamp: new Date().toISOString()
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Handoff request received',
-      conversation_id: body.conversation_id,
-      contact_info: {
-        human_name: humanContactName,
-        response_expected: 'within 24 hours',
-        contact_method: 'will be determined based on your preference'
-      }
-    });
+    // 6. Return success response with follow-up info
+    return createSuccessResponse(
+      {
+        handoff_id: handoffId,
+        urgency: data.urgency,
+        human_contact: humanContactName,
+        brand: brandName,
+        response_expected: data.urgency === 'high' ? 'within 2 hours' : 'within 24 hours',
+      },
+      'Handoff request received. Human follow-up initiated.',
+      201
+    );
 
   } catch (error) {
-    console.error('[HANDOFF ERROR]', error);
-    return NextResponse.json(
-      { error: 'Invalid request body', success: false },
-      { status: 400 }
+    // Handle JSON parse errors
+    if (error instanceof SyntaxError) {
+      return createValidationErrorResponse({
+        name: 'ZodError',
+        issues: [{ message: 'Invalid JSON in request body', path: [], code: 'invalid_json' }],
+      } as any);
+    }
+
+    // Log unexpected errors
+    console.error('[HANDOFF] Unexpected error:', error);
+    return createSuccessResponse(
+      { error: 'Internal server error' },
+      'An unexpected error occurred',
+      500
     );
   }
 }
 
+// ============================================================================
+// GET /api/agent/request-handoff (Health check)
+// ============================================================================
 export async function GET(request: NextRequest) {
-  // Verify API token
   const authResult = verifyApiToken(request);
   if (!authResult.success) {
     return createUnauthorizedResponse(authResult.error!);
   }
 
-  return NextResponse.json({
-    success: true,
-    message: 'Handoff API is operational',
-    endpoint: '/api/agent/request-handoff',
-    brand: process.env.BRAND_NAME || 'Optimizium'
-  });
+  const humanContactName = process.env.HUMAN_CONTACT_NAME || 'Paweł';
+  const brandName = process.env.BRAND_NAME || 'Optimizium';
+
+  return createSuccessResponse(
+    {
+      endpoint: '/api/agent/request-handoff',
+      method: 'POST',
+      description: 'Requests human follow-up and records urgency + reason',
+      required_fields: ['timestamp', 'reason'],
+      optional_fields: ['lead_id', 'urgency', 'relevant_context'],
+      human_contact: humanContactName,
+      brand: brandName,
+      urgency_levels: ['low', 'medium', 'high'],
+    },
+    'Handoff API is operational'
+  );
 }

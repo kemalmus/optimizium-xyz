@@ -1,70 +1,128 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyApiToken, createUnauthorizedResponse } from '@/lib/auth';
+import { NextRequest } from 'next/server';
+import {
+  verifyApiToken,
+  createSuccessResponse,
+  createUnauthorizedResponse,
+  createValidationErrorResponse,
+} from '@/lib/auth';
+import { SubmitFeedbackSchema } from '@/lib/schemas';
+import { storage, type StorageRecord } from '@/lib/storage';
 
-export interface FeedbackSubmission {
-  agent_id: string;
-  conversation_id: string;
-  feedback_text: string;
-  sentiment?: 'positive' | 'negative' | 'neutral';
-  timestamp?: string;
-  metadata?: Record<string, any>;
-}
+// ============================================================================
+// POST /api/agent/submit-feedback
+// ElevenLabs Tool: submit_feedback
+//
+// Stores structured conversation summary and lead qualification data.
+// Use after gathering sufficient context during the conversation.
+// ============================================================================
 
 export async function POST(request: NextRequest) {
-  // Verify API token
+  // 1. Verify authentication
   const authResult = verifyApiToken(request);
   if (!authResult.success) {
     return createUnauthorizedResponse(authResult.error!);
   }
 
   try {
-    const body: FeedbackSubmission = await request.json();
+    // 2. Parse and validate request body
+    const rawBody = await request.json();
 
-    // Validate required fields
-    if (!body.agent_id || !body.conversation_id || !body.feedback_text) {
-      return NextResponse.json(
-        { error: 'Missing required fields: agent_id, conversation_id, feedback_text', success: false },
-        { status: 400 }
-      );
+    const validationResult = SubmitFeedbackSchema.safeParse(rawBody);
+
+    if (!validationResult.success) {
+      return createValidationErrorResponse(validationResult.error);
     }
 
-    // TODO: Implement actual storage logic
-    // Options: Database (Vercel Postgres, Supabase, etc.)
-    // For now, log the feedback
-    console.log('[FEEDBACK SUBMISSION]', {
-      agent_id: body.agent_id,
-      conversation_id: body.conversation_id,
-      feedback_text: body.feedback_text,
-      sentiment: body.sentiment,
-      timestamp: body.timestamp || new Date().toISOString(),
-      metadata: body.metadata
-    });
+    const data = validationResult.data;
 
-    return NextResponse.json({
-      success: true,
-      message: 'Feedback received',
-      conversation_id: body.conversation_id
-    });
+    // 3. Generate unique ID for this feedback
+    const feedbackId = `feedback_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    // 4. Store the feedback
+    const record: StorageRecord = {
+      id: feedbackId,
+      timestamp: data.timestamp,
+      type: 'feedback',
+      data: {
+        lead_id: data.lead_id,
+        company: data.company,
+        contact_name: data.contact_name,
+        language: data.language,
+        offer_version: data.offer_version,
+        conversation_channel: data.conversation_channel,
+        interest_level: data.interest_level,
+        fit_assessment: data.fit_assessment,
+        stated_priorities: data.stated_priorities,
+        constraints: data.constraints,
+        objections: data.objections,
+        negotiation_signals: data.negotiation_signals,
+        next_step_preference: data.next_step_preference,
+        contact_preference: data.contact_preference,
+        human_handoff_requested: data.human_handoff_requested,
+        agent_summary: data.agent_summary,
+      },
+    };
+
+    await storage.save(record);
+
+    // 5. Return success response
+    return createSuccessResponse(
+      {
+        feedback_id: feedbackId,
+        lead_id: data.lead_id,
+        interest_level: data.interest_level,
+        next_step: data.next_step_preference,
+      },
+      'Feedback submitted successfully',
+      201
+    );
 
   } catch (error) {
-    console.error('[FEEDBACK ERROR]', error);
-    return NextResponse.json(
-      { error: 'Invalid request body', success: false },
-      { status: 400 }
+    // Handle JSON parse errors
+    if (error instanceof SyntaxError) {
+      return createValidationErrorResponse({
+        name: 'ZodError',
+        issues: [{ message: 'Invalid JSON in request body', path: [], code: 'invalid_json' }],
+      } as any);
+    }
+
+    // Log unexpected errors
+    console.error('[SUBMIT-FEEDBACK] Unexpected error:', error);
+    return createSuccessResponse(
+      { error: 'Internal server error' },
+      'An unexpected error occurred',
+      500
     );
   }
 }
 
+// ============================================================================
+// GET /api/agent/submit-feedback (Health check)
+// ============================================================================
 export async function GET(request: NextRequest) {
-  // Verify API token
   const authResult = verifyApiToken(request);
   if (!authResult.success) {
     return createUnauthorizedResponse(authResult.error!);
   }
 
-  return NextResponse.json({
-    success: true,
-    message: 'Feedback API is operational',
-    endpoint: '/api/agent/submit-feedback'
-  });
+  return createSuccessResponse(
+    {
+      endpoint: '/api/agent/submit-feedback',
+      method: 'POST',
+      description: 'Stores structured conversation summary and lead qualification data',
+      required_fields: [
+        'timestamp',
+        'language',
+        'offer_version',
+        'conversation_channel',
+        'interest_level',
+        'fit_assessment',
+        'stated_priorities',
+        'objections',
+        'next_step_preference',
+        'agent_summary',
+      ],
+    },
+    'Feedback API is operational'
+  );
 }

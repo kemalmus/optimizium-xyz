@@ -1,90 +1,112 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { verifyApiToken, createUnauthorizedResponse } from '@/lib/auth';
+import { NextRequest } from 'next/server';
+import {
+  verifyApiToken,
+  createSuccessResponse,
+  createUnauthorizedResponse,
+  createValidationErrorResponse,
+} from '@/lib/auth';
+import { LogNegotiationSchema } from '@/lib/schemas';
+import { storage, type StorageRecord } from '@/lib/storage';
 
-export interface NegotiationSignal {
-  agent_id: string;
-  conversation_id: string;
-  signal_type: 'price_concern' | 'timeline_concern' | 'competitor_mention' | 'objection' | 'interest' | 'commitment';
-  content: string;
-  sentiment?: 'positive' | 'negative' | 'neutral';
-  metadata?: {
-    user_intent?: string;
-    proposed_price?: number;
-    mentioned_competitor?: string;
-    deadline_mentioned?: string;
-    budget_indicated?: number;
-  };
-}
+// ============================================================================
+// POST /api/agent/log-negotiation
+// ElevenLabs Tool: log_negotiation_signal
+//
+// Captures any pricing/scope negotiation request, whether within guardrails or not.
+// Logs both the request and whether it respects guardrails.
+// ============================================================================
 
 export async function POST(request: NextRequest) {
-  // Verify API token
+  // 1. Verify authentication
   const authResult = verifyApiToken(request);
   if (!authResult.success) {
     return createUnauthorizedResponse(authResult.error!);
   }
 
   try {
-    const body: NegotiationSignal = await request.json();
+    // 2. Parse and validate request body
+    const rawBody = await request.json();
 
-    // Validate required fields
-    if (!body.agent_id || !body.conversation_id || !body.signal_type || !body.content) {
-      return NextResponse.json(
-        { error: 'Missing required fields: agent_id, conversation_id, signal_type, content', success: false },
-        { status: 400 }
-      );
+    const validationResult = LogNegotiationSchema.safeParse(rawBody);
+
+    if (!validationResult.success) {
+      return createValidationErrorResponse(validationResult.error);
     }
 
-    // Validate signal_type
-    const validSignalTypes = ['price_concern', 'timeline_concern', 'competitor_mention', 'objection', 'interest', 'commitment'];
-    if (!validSignalTypes.includes(body.signal_type)) {
-      return NextResponse.json(
-        { error: `Invalid signal_type. Must be one of: ${validSignalTypes.join(', ')}`, success: false },
-        { status: 400 }
-      );
-    }
+    const data = validationResult.data;
 
-    // TODO: Implement actual storage/analytics logic
-    // Options:
-    // - Store in database for analytics
-    // - Send to analytics platform (Mixpanel, Amplitude, etc.)
-    // - Trigger alerts for high-priority signals
-    console.log('[NEGOTIATION SIGNAL]', {
-      agent_id: body.agent_id,
-      conversation_id: body.conversation_id,
-      signal_type: body.signal_type,
-      content: body.content,
-      sentiment: body.sentiment,
-      metadata: body.metadata,
-      timestamp: new Date().toISOString()
-    });
+    // 3. Generate unique ID for this negotiation signal
+    const signalId = `negotiation_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-    return NextResponse.json({
-      success: true,
-      message: 'Negotiation signal logged',
-      conversation_id: body.conversation_id,
-      signal_type: body.signal_type
-    });
+    // 4. Store the negotiation signal
+    const record: StorageRecord = {
+      id: signalId,
+      timestamp: data.timestamp,
+      type: 'negotiation',
+      data: {
+        lead_id: data.lead_id,
+        topic: data.topic,
+        requested_change: data.requested_change,
+        within_guardrails: data.within_guardrails,
+        conversation_context: data.conversation_context,
+      },
+    };
+
+    await storage.save(record);
+
+    // 5. Log for monitoring
+    const guardrailStatus = data.within_guardrails ? '✓ WITHIN' : '⚠ OUTSIDE';
+    console.log(`[NEGOTIATION] ${guardrailStatus} guardrails: ${data.topic} - ${data.requested_change}`);
+
+    // 6. Return success response
+    return createSuccessResponse(
+      {
+        signal_id: signalId,
+        topic: data.topic,
+        within_guardrails: data.within_guardrails,
+        logged_at: new Date().toISOString(),
+      },
+      'Negotiation signal logged successfully',
+      201
+    );
 
   } catch (error) {
-    console.error('[NEGOTIATION LOG ERROR]', error);
-    return NextResponse.json(
-      { error: 'Invalid request body', success: false },
-      { status: 400 }
+    // Handle JSON parse errors
+    if (error instanceof SyntaxError) {
+      return createValidationErrorResponse({
+        name: 'ZodError',
+        issues: [{ message: 'Invalid JSON in request body', path: [], code: 'invalid_json' }],
+      } as any);
+    }
+
+    // Log unexpected errors
+    console.error('[NEGOTIATION] Unexpected error:', error);
+    return createSuccessResponse(
+      { error: 'Internal server error' },
+      'An unexpected error occurred',
+      500
     );
   }
 }
 
+// ============================================================================
+// GET /api/agent/log-negotiation (Health check)
+// ============================================================================
 export async function GET(request: NextRequest) {
-  // Verify API token
   const authResult = verifyApiToken(request);
   if (!authResult.success) {
     return createUnauthorizedResponse(authResult.error!);
   }
 
-  return NextResponse.json({
-    success: true,
-    message: 'Negotiation logging API is operational',
-    endpoint: '/api/agent/log-negotiation',
-    supported_signals: ['price_concern', 'timeline_concern', 'competitor_mention', 'objection', 'interest', 'commitment']
-  });
+  return createSuccessResponse(
+    {
+      endpoint: '/api/agent/log-negotiation',
+      method: 'POST',
+      description: 'Captures pricing/scope negotiation requests and guardrails compliance',
+      required_fields: ['timestamp', 'topic', 'requested_change', 'within_guardrails'],
+      optional_fields: ['lead_id', 'conversation_context'],
+      supported_topics: ['retainer_hours', 'pricing', 'sequence', 'format', 'other'],
+    },
+    'Negotiation logging API is operational'
+  );
 }
